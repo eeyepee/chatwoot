@@ -453,6 +453,11 @@ Rails.application.routes.draw do
     resource :callback, only: [:show]
   end
 
+  namespace :facebook do
+    resources :delete, only: [:create]
+    resources :confirm, only: [:show]
+  end
+
   namespace :linear do
     resource :callback, only: [:show]
   end
