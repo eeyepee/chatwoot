@@ -9,6 +9,7 @@ import AccountSelector from 'dashboard/components/layout/sidebarComponents/Accou
 import AddLabelModal from 'dashboard/routes/dashboard/settings/labels/AddLabel.vue';
 import NotificationPanel from 'dashboard/routes/dashboard/notifications/components/NotificationPanel.vue';
 import UpgradePage from 'dashboard/routes/dashboard/upgrade/UpgradePage.vue';
+import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAccount } from 'dashboard/composables/useAccount';
@@ -37,6 +38,7 @@ export default {
     AddLabelModal,
     NotificationPanel,
     UpgradePage,
+    Spinner,
   },
   setup() {
     const upgradePageRef = ref(null);
@@ -64,19 +66,14 @@ export default {
   computed: {
     ...mapGetters({
       isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
+      accountUIFlags: 'accounts/getUIFlags',
+      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
     }),
     currentRoute() {
       return ' ';
     },
     showUpgradePage() {
       return this.upgradePageRef?.shouldShowUpgradePage;
-    },
-    bypassUpgradePage() {
-      return [
-        'billing_settings_index',
-        'settings_inbox_list',
-        'agent_list',
-      ].includes(this.$route.name);
     },
     isSidebarOpen() {
       const { show_secondary_sidebar: showSecondarySidebar } = this.uiSettings;
@@ -116,6 +113,7 @@ export default {
     },
   },
   mounted() {
+    this.fetchLimits();
     this.handleResize();
     this.$nextTick(this.checkBanner);
     window.addEventListener('resize', this.handleResize);
@@ -129,6 +127,10 @@ export default {
   },
 
   methods: {
+    fetchLimits() {
+      if (!this.isOnChatwootCloud) return;
+      this.$store.dispatch('accounts/limits');
+    },
     checkBanner() {
       this.hasBanner =
         document.getElementsByClassName('woot-banner').length > 0;
@@ -211,39 +213,43 @@ export default {
       @show-add-label-popup="showAddLabelPopup"
     />
     <main class="flex flex-1 h-full min-h-0 px-0 overflow-hidden">
-      <UpgradePage
-        v-show="showUpgradePage"
-        ref="upgradePageRef"
-        :bypass-upgrade-page="bypassUpgradePage"
-      />
-      <template v-if="!showUpgradePage">
-        <router-view />
-        <CommandBar />
-        <NotificationPanel
-          v-if="isNotificationPanel"
-          @close="closeNotificationPanel"
+      <div
+        v-if="accountUIFlags.isFetchingLimits"
+        class="flex items-center justify-center w-full h-full"
+      >
+        <Spinner :size="24" class="text-n-brand" />
+      </div>
+      <template v-else>
+        <UpgradePage ref="upgradePageRef" />
+        <template v-if="!showUpgradePage">
+          <router-view />
+          <CommandBar />
+          <NotificationPanel
+            v-if="isNotificationPanel"
+            @close="closeNotificationPanel"
+          />
+          <woot-modal
+            v-model:show="showAddLabelModal"
+            :on-close="hideAddLabelPopup"
+          >
+            <AddLabelModal @close="hideAddLabelPopup" />
+          </woot-modal>
+        </template>
+        <AccountSelector
+          :show-account-modal="showAccountModal"
+          @close-account-modal="toggleAccountModal"
+          @show-create-account-modal="openCreateAccountModal"
         />
-        <woot-modal
-          v-model:show="showAddLabelModal"
-          :on-close="hideAddLabelPopup"
-        >
-          <AddLabelModal @close="hideAddLabelPopup" />
-        </woot-modal>
+        <AddAccountModal
+          :show="showCreateAccountModal"
+          @close-account-create-modal="closeCreateAccountModal"
+        />
+        <WootKeyShortcutModal
+          v-model:show="showShortcutModal"
+          @close="closeKeyShortcutModal"
+          @clickaway="closeKeyShortcutModal"
+        />
       </template>
-      <AccountSelector
-        :show-account-modal="showAccountModal"
-        @close-account-modal="toggleAccountModal"
-        @show-create-account-modal="openCreateAccountModal"
-      />
-      <AddAccountModal
-        :show="showCreateAccountModal"
-        @close-account-create-modal="closeCreateAccountModal"
-      />
-      <WootKeyShortcutModal
-        v-model:show="showShortcutModal"
-        @close="closeKeyShortcutModal"
-        @clickaway="closeKeyShortcutModal"
-      />
     </main>
   </div>
 </template>
